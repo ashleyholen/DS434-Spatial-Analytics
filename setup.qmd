@@ -1,0 +1,45 @@
+---
+title: "Intro"
+format: html
+editor: visual
+---y
+---
+
+```{r}
+# Install remotes if you don't have it
+install.packages("remotes")
+
+# Install geosam
+remotes::install_github("walkerke/geosam")
+```
+
+```{r}
+library(geosam)
+
+Sys.setenv(CONDA_SUBDIR = "osx-arm64")
+geosam_install(method = "conda")
+
+geosam_status()
+
+```
+
+```{r}
+Sys.setenv(
+  PROJ_LIB = "/Users/ashleyholen/opt/anaconda3/envs/geosam/lib/python3.12/site-packages/pyproj/proj_dir/share/proj"
+)
+```
+
+```{r}
+# Detect football fields at TCU campus
+field <- sam_detect(
+  bbox = c(-97.372, 32.707, -97.366, 32.712),
+  text = "football field",
+  source = "esri",  # Free, no API key needed
+  zoom = 17
+)
+
+# View results
+plot(field)
+
+#
+```
