@@ -8,27 +8,19 @@ editor: visual
 
 ```{r}
 # Install remotes if you don't have it
-install.packages("remotes")
+#install.packages("remotes")
 
 # Install geosam
-remotes::install_github("walkerke/geosam")
-```
+#remotes::install_github("walkerke/geosam")
 
-```{r}
+install.packages("geosam", repos = c("https://walkerke.r-universe.dev", "https://cloud.r-project.org"))
+
 library(geosam)
-
-Sys.setenv(CONDA_SUBDIR = "osx-arm64")
-geosam_install(method = "conda")
-
-geosam_status()
+library(sf)
+library(terra)
 
 ```
 
-```{r}
-Sys.setenv(
-  PROJ_LIB = "/Users/ashleyholen/opt/anaconda3/envs/geosam/lib/python3.12/site-packages/pyproj/proj_dir/share/proj"
-)
-```
 
 ```{r}
 # Detect football fields at TCU campus
@@ -42,5 +34,5 @@ field <- sam_detect(
 # View results
 plot(field)
 
-#
+sam_view(field)
 ```
