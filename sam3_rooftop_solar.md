@@ -180,15 +180,18 @@ For each resource, read/explore the content and write **3-5 key takeaways** that
 
 **Your 3-5 Key Takeaways:**
 
-1. The site is designed to 
+1. The site is designed to provide introductory information, the analysis completed, and the breakdown of results. This resource is aimed to provide 
+   an accessible insight for the general public. The information section reports that we are 'on track', with 31.5% renewable Portfolio Standard (RPS) 
+   achieved. It is also stated that Decarbonization is defined as - reducing, offsetting or eliminating all sources of carbon emissions contributing to climate change.
+   Decarbonization can be acheived by action on how energy is consumed and how it is generated. Energy efficiency, Electrification of transportation, 
+   and Distributed energy resources are highlighted and their model functions described. 
 
-2. 
+2. The dashboard contains senarios for Energy efficiency, Electrification of transportation,and Distributed energy resources being "low", "moderate", and "high"
+   in order to forecast load. Low and High bookends and Best Case Data and Underlying Forecast is available for each island. This data can be downloaded. 
 
-3. 
-
-4. 
-
-5. 
+3. Primary points that are mentioned are: Solar isn’t right for every rooftop, A diverse grid is resilient, and Even if it could work, it wouldn’t power the whole grid.
+   
+4. Something that stands out to be are the assumptions made and the cases created. 
 
 ---
 
