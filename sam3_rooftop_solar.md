@@ -227,25 +227,25 @@ Based on your takeaways above, develop a focused research plan that demonstrates
 
 **Your Research Plan:**
 
-1. 
+1. What is Oahu's overall solar capacity and what is the current percentage solar energies produced? To increase solar production, what specific areas on island would be most effective for PV implementation?
 
-2. 
+2. This is key information for HI's clean energy transition, as data is necessary to track progress on renewable energies (which is predominantly solar) relative to the state's capacity. Additionally, when looking to expand HI's solar infrastructure, knowing which exact locations are possible for supporting PV production assists HECO and state government in the implementation process.  
 
-3. 
+3. Oahu, HI. But looking to expand this research to all of Hawai'i.
 
-4. 
+4. The data that will be used alongside geosam is HECO solar usage and capacity data if available to calculate production by are and potentially census data to discover any socioeconomic correlations to the placement of solar panels. 
 
-5. 
+5. The data will be analyzed using the geosam map to visually detect solar occupancy on Oahu, but also specially calculating the area measurement of solar on rooftops. Then, a current production amount will be estimated based on HECO numbers, which capacity percentage can then be determined using a baseline capacity measurement from HECO. Also, using census data, further information can be used to find any potential correlations regarding access to solar. 
 
-6. 
+6. We expect to discover over half of the homes on the island to have rooftop solar. We presume these may be located in higher income areas due to the price of installation. Also, natural environmental factors will play a role in solar placement. 
 
-7. 
+7. The results will show the state's progress on their solar initiative but also provide a reference of how much room is left to grow regarding household solar for renewable energy. We hope to locate areas that can be installation contenders and increase production by finding correlations and analyzing spatial patterns. 
 
-8. 
+8. We can verify geosam's accuracy using ground truth data of live maps or HECO/State reported numbers. We can also manually adjust accuracy to test for a best fitting model, using familiar locations as reference. Each student running a version of the map will also assist the verification process. 
 
-9. 
+9. The limitations of the geosam approach are that the package is new so is susceptible to faults and inaccuracies, and that the model can falsely detect or miss solar panels. Also, calculating capacity will not be exact due to lack of data, and we do not know if every existing solar panel is in operation necessarily. 
 
-10. 
+10. Our findings will be critical to decision makers in the state of HI in both energy and legislation. These findings will help all of the people in Hawai'i in moving toward a cleaner and sustainable future. 
 
 ---
 
