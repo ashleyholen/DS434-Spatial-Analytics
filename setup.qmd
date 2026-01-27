@@ -8,6 +8,10 @@ editor: visual
 
 ```{r}
 # Install remotes if you don't have it
+```
+
+
+```{r}
 #install.packages("remotes")
 
 # Install geosam
@@ -36,3 +40,4 @@ plot(field)
 
 sam_view(field)
 ```
+
