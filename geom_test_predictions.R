@@ -28,3 +28,5 @@ ggplot(data = oahu_solar_prelim, aes(x = score, y = area_m2)) +
   geom_smooth()
 
 
+
+
