@@ -1,0 +1,283 @@
+---
+title: "Beach Safety Optimization on Oahu"
+author: "Ashley Holen"
+format: html
+editor: visual
+---
+
+## Intro
+
+Put intro here
+
+## Set up
+
+```{r}
+#| message: false
+#| warning: false
+
+install.packages('spopt', repos = c('https://walkerke.r-universe.dev', 'https://cloud.r-project.org'))
+
+library(tidyverse)
+library(sf)
+library(mapview)
+library(spopt)
+library(here)
+```
+
+## Loading in Data
+
+```{r}
+towers <- st_read(here("data/Lifeguard_Towers.geojson"), quiet = TRUE)
+
+towers <- towers |>
+  st_transform(4326)
+```
+
+```{r}
+access <- st_read(here("data/Shoreline_Public_Access.geojson"), quiet = TRUE) |>
+  st_transform(4326)
+
+# Filter to unguarded sandy sites
+candidate_sites <- access |>
+  filter(
+    lifeguard == "No",
+    str_detect(shore_type, "Sand")
+  ) |>
+  mutate(site_id = row_number())
+```
+
+```{r}
+beach_raw <- read_csv(here("data/beachdata.csv"), show_col_types = FALSE)
+
+# Clean column names and parse numeric fields
+beach_data <- beach_raw |>
+  rename(
+    beach_park    = `Beach Park`,
+    coordinates   = `Cooordinates`,
+    attendance    = Attendance,
+    public_contact = `Public Contact`,
+    prev_action   = `Prevent. Action`,
+    rescues       = Rescues,
+    first_aid_minor = `1st Aid Minor`,
+    first_aid_report = `1st Aid Report`,
+    surf_accidents = `Surf Accidents`,
+    drownings     = Drownings
+  ) |>
+  # Strip commas, regular spaces, and non-breaking spaces (\xa0) before parsing
+  mutate(across(c(attendance, public_contact, prev_action, rescues,
+                  first_aid_minor, first_aid_report, surf_accidents, drownings),
+                ~ as.numeric(str_remove_all(.x, "[,\\s\u00a0]+")))) |>
+  mutate(drownings = replace_na(drownings, 0)) |>
+  # Parse coordinate string into lat/lon — kept as plain columns for now
+  separate(coordinates, into = c("lat", "lon"), sep = ",\\s*", convert = TRUE)
+
+# Preview the data before converting to sf
+#glimpse(beach_data)
+```
+
+Shoreline Public Access Points
+
+```{r}
+mapview(access, color = "blue", col.regions = "blue")
+```
+
+Existing Lifeguard Towers
+
+```{r}
+mapview(towers, color = "green", col.regions = "green")
+```
+
+Combined Map
+
+```{r}
+beach_sf <- st_as_sf(beach_data, coords = c("lon", "lat"), crs = 4326) |>
+  mutate(rescues_per_capita = rescues / attendance * 100000)
+
+mapview(beach_sf,
+        zcol = "rescues_per_capita",
+        layer.name = "Rescues per 100k Visitors",
+        col.regions = RColorBrewer::brewer.pal(9, "YlOrRd"),
+        cex = "rescues_per_capita") +
+  mapview(access,
+          color = "blue",
+          col.regions = "blue",
+          layer.name = "Public Access Points") +
+  mapview(towers,
+          color = "green",
+          col.regions = "green",
+          layer.name = "Lifeguard Towers")
+```
+
+Calculating Composite Safety Need
+
+```{r}
+beach_data <- beach_data |>
+  mutate(
+    # Attendance-weighted rescue rate
+    rescues_per_capita = rescues / attendance * 100000,
+
+    # Normalize each indicator to 0–1
+    rescues_scaled = (rescues_per_capita - min(rescues_per_capita, na.rm = TRUE)) /
+      (max(rescues_per_capita, na.rm = TRUE) - min(rescues_per_capita, na.rm = TRUE)),
+    
+    drownings_scaled = (drownings - min(drownings, na.rm = TRUE)) /
+      (max(drownings, na.rm = TRUE) - min(drownings, na.rm = TRUE)),
+    
+    surf_scaled = (replace_na(surf_accidents, 0) - min(replace_na(surf_accidents, 0), na.rm = TRUE)) /
+      (max(replace_na(surf_accidents, 0), na.rm = TRUE) - min(replace_na(surf_accidents, 0), na.rm = TRUE)),
+    
+    attendance_scaled = (attendance - min(attendance, na.rm = TRUE)) /
+      (max(attendance, na.rm = TRUE) - min(attendance, na.rm = TRUE)),
+
+    # Composite safety need score (0–100)
+    # Rescues per capita: 40%, drownings: 30%, surf accidents: 20%, attendance: 10%
+    safety_need = (rescues_scaled   * 40 +
+                   drownings_scaled * 30 +
+                   surf_scaled      * 20 +
+                   attendance_scaled * 10) * 100
+  )
+
+# Convert to sf now that all mutations are done
+beach_sf <- beach_data |>
+  st_as_sf(coords = c("lon", "lat"), crs = 4326)
+
+# Preview top beaches by safety need
+beach_data |>
+  select(beach_park, attendance, rescues_per_capita, drownings, surf_accidents, safety_need) |>
+  arrange(desc(safety_need)) |>
+  knitr::kable(digits = 1, caption = "Beach parks ranked by composite safety need score")
+```
+
+Assign Demand Scores to Candidate Sites
+
+```{r}
+# Nearest-neighbor join: match each candidate to its closest beach park
+nearest_idx <- st_nearest_feature(candidate_sites, beach_sf)
+
+# Calculate actual distance to nearest beach park (to flag data-poor sites)
+nearest_dist <- st_distance(candidate_sites, beach_sf[nearest_idx, ], by_element = TRUE)
+
+candidate_sites <- candidate_sites |>
+  mutate(
+    nearest_beach    = beach_data$beach_park[nearest_idx],
+    safety_need      = beach_data$safety_need[nearest_idx],
+    dist_to_beach_km = as.numeric(nearest_dist) / 1000,
+    # Flag sites >5 km from any beach park as data-poor
+    data_poor        = dist_to_beach_km > 5
+  )
+
+cat("Median distance to nearest beach park:", 
+    round(median(candidate_sites$dist_to_beach_km), 1), "km\n")
+cat("Sites flagged as data-poor (>5 km):", 
+    sum(candidate_sites$data_poor), "of", nrow(candidate_sites), "\n")
+```
+
+Calculate Distance to Nearest Existing Tower
+
+```{r}
+# Distance matrix: each candidate to every existing tower
+tower_dist_matrix <- st_distance(candidate_sites, towers)
+
+candidate_sites <- candidate_sites |>
+  mutate(
+    dist_to_nearest_tower_m  = as.numeric(apply(tower_dist_matrix, 1, min)),
+    dist_to_nearest_tower_km = dist_to_nearest_tower_m / 1000
+  )
+
+summary(candidate_sites$dist_to_nearest_tower_km)
+```
+
+Composite Site Score
+
+```{r}
+candidate_sites <- candidate_sites |>
+  mutate(
+    # Normalize coverage gap to 0–1 (higher = farther from existing tower)
+    coverage_gap_scaled = (dist_to_nearest_tower_km - min(dist_to_nearest_tower_km)) /
+      (max(dist_to_nearest_tower_km) - min(dist_to_nearest_tower_km)),
+
+    # Normalize safety need to 0–1
+    need_scaled = safety_need / 100,
+
+    # Uncertainty weight: data-poor sites get a boost (precautionary principle)
+    uncertainty = if_else(data_poor, 1, 0),
+
+    # Composite score: coverage gap 40%, safety need 40%, uncertainty 20%
+    site_score = (coverage_gap_scaled * 40 +
+                  need_scaled         * 40 +
+                  uncertainty         * 20)
+  )
+
+# Preview top candidate sites
+candidate_sites |>
+  st_drop_geometry() |>
+  select(name, nearest_beach, safety_need, dist_to_nearest_tower_km, data_poor, site_score) |>
+  arrange(desc(site_score)) |>
+  head(10) |>
+  knitr::kable(digits = 2, caption = "Top 10 candidate sites by composite score")
+```
+
+Spatial Optimization
+
+```{r}
+# Scenario 1: Safety-driven — p-median weighted by beach park safety need
+# Demand = 21 beach parks; optimizer pulls new tower toward high-rescue zones
+result_safety <- p_median(
+  demand       = beach_sf,
+  facilities   = candidate_sites,
+  n_facilities = 1,
+  weight_col   = "safety_need"
+)
+
+# Scenario 2: Location-driven — p-center on unguarded candidate sites
+# Purely geometric; finds the site that minimizes the maximum distance
+# to any unguarded access point, ignoring rescue history entirely
+result_location <- p_center(
+  demand       = candidate_sites,
+  facilities   = candidate_sites,
+  n_facilities = 1
+)
+
+# Extract selected sites
+optimal_safety   <- result_safety$facilities   |> filter(.selected)
+optimal_location <- result_location$facilities |> filter(.selected)
+
+# Compare scenarios
+tibble(
+  Scenario              = c("Safety-Driven (p-median)", "Location-Driven (p-center)"),
+  `Selected Site`       = c(optimal_safety$name,   optimal_location$name),
+  `Safety Need`         = c(round(optimal_safety$safety_need, 1),
+                             round(optimal_location$safety_need, 1)),
+  `Dist. to Tower (km)` = c(round(optimal_safety$dist_to_nearest_tower_km, 2),
+                             round(optimal_location$dist_to_nearest_tower_km, 2)),
+  `Data Poor`           = c(optimal_safety$data_poor, optimal_location$data_poor)
+) |>
+  knitr::kable(caption = "Optimization scenario comparison — 1 new lifeguard stand")
+```
+
+Results Visualization
+
+```{r}
+mapview(beach_sf,
+        zcol = "safety_need",
+        layer.name = "Safety Need by Beach Park",
+        col.regions = RColorBrewer::brewer.pal(9, "YlOrRd"),
+        alpha.regions = 0.7) +
+  mapview(towers,
+          col.regions = "green",
+          cex = 5,
+          layer.name = "Existing Towers") +
+  mapview(candidate_sites,
+          zcol = "site_score",
+          col.regions = RColorBrewer::brewer.pal(9, "Blues"),
+          cex = 3,
+          layer.name = "Candidate Sites (by Score)") +
+  mapview(optimal_safety,
+          col.regions = "red",
+          cex = 10,
+          layer.name = "Optimal: Safety-Driven") +
+  mapview(optimal_location,
+          col.regions = "purple",
+          cex = 10,
+          layer.name = "Optimal: Location-Driven")
+```
